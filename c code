@@ -1,0 +1,533 @@
+
+#include <stdio.h>
+#include <string.h>
+
+#define MAX_INCIDENTS 100         
+#define FILE_NAME "incidents.dat"  
+
+
+struct Incident
+{
+    int  incidentId;          
+    char incidentType[30];    
+    char description[100];    
+    int  severity;            
+    int  status;              
+};
+
+
+struct Incident incidentList[MAX_INCIDENTS];   
+int totalIncidents = 0;                        
+
+
+
+void clearInputLine(void);
+const char *severityToText(int severity);
+const char *statusToText(int status);
+int  findIncidentIndex(int id);
+void printOneIncident(struct Incident inc);
+int  askSeverity(void);
+int  askStatus(void);
+
+void loadFromFile(void);
+void saveToFile(void);
+
+void addIncident(void);
+void viewAllIncidents(void);
+void searchById(void);
+void searchByType(void);
+void searchBySeverity(void);
+void updateIncident(void);
+void deleteIncident(void);
+void showStatistics(void);
+
+
+
+int main(void)
+{
+    int menuChoice;
+
+    loadFromFile();
+
+    do
+    {
+        printf("\n=====================================\n");
+        printf("   CYBER SECURITY INCIDENT TRACKER\n");
+        printf("=====================================\n");
+        printf("1. Add new incident\n");
+        printf("2. View all incidents\n");
+        printf("3. Search incident by ID\n");
+        printf("4. Search incidents by type\n");
+        printf("5. Search incidents by severity\n");
+        printf("6. Update an incident\n");
+        printf("7. Delete an incident\n");
+        printf("8. Show statistics\n");
+        printf("9. Exit\n");
+        printf("Enter your choice: ");
+
+        if (scanf("%d", &menuChoice) != 1)
+        {
+            menuChoice = 0;      
+        }
+        clearInputLine();        
+        
+        switch (menuChoice)
+        {
+            case 1: addIncident();        break;
+            case 2: viewAllIncidents();   break;
+            case 3: searchById();         break;
+            case 4: searchByType();       break;
+            case 5: searchBySeverity();   break;
+            case 6: updateIncident();     break;
+            case 7: deleteIncident();     break;
+            case 8: showStatistics();     break;
+            case 9: printf("Goodbye!\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (menuChoice != 9);
+
+    return 0;
+}
+
+
+/* =====================================================
+ *                 HELPER FUNCTIONS
+ * ===================================================== */
+
+void clearInputLine(void)
+{
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF)
+    {
+        
+    }
+}
+
+
+const char *severityToText(int severity)
+{
+    if (severity == 1) return "Low";
+    if (severity == 2) return "Medium";
+    if (severity == 3) return "High";
+    if (severity == 4) return "Critical";
+    return "Unknown";
+}
+
+
+const char *statusToText(int status)
+{
+    if (status == 1) return "Open";
+    if (status == 2) return "In Progress";
+    if (status == 3) return "Resolved";
+    return "Unknown";
+}
+
+
+int findIncidentIndex(int id)
+{
+    int i;
+    for (i = 0; i < totalIncidents; i++)
+    {
+        if (incidentList[i].incidentId == id)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+void printOneIncident(struct Incident inc)
+{
+    printf("-------------------------------------\n");
+    printf("ID          : %d\n", inc.incidentId);
+    printf("Type        : %s\n", inc.incidentType);
+    printf("Description : %s\n", inc.description);
+    printf("Severity    : %s\n", severityToText(inc.severity));
+    printf("Status      : %s\n", statusToText(inc.status));
+}
+
+
+int askSeverity(void)
+{
+    int choice = 0;
+    while (choice < 1 || choice > 4)
+    {
+        printf("Severity (1=Low, 2=Medium, 3=High, 4=Critical): ");
+        if (scanf("%d", &choice) != 1)
+        {
+            choice = 0;
+        }
+        clearInputLine();
+        if (choice < 1 || choice > 4)
+        {
+            printf("Wrong input. Please enter a number from 1 to 4.\n");
+        }
+    }
+    return choice;
+}
+
+
+int askStatus(void)
+{
+    int choice = 0;
+    while (choice < 1 || choice > 3)
+    {
+        printf("Status (1=Open, 2=In Progress, 3=Resolved): ");
+        if (scanf("%d", &choice) != 1)
+        {
+            choice = 0;
+        }
+        clearInputLine();
+        if (choice < 1 || choice > 3)
+        {
+            printf("Wrong input. Please enter a number from 1 to 3.\n");
+        }
+    }
+    return choice;
+}
+
+
+/* =====================================================
+ *                  FILE HANDLING
+ * ===================================================== */
+
+
+void loadFromFile(void)
+{
+    FILE *filePointer = fopen(FILE_NAME, "rb");   /* "rb" = read binary */
+
+   
+    if (filePointer == NULL)
+    {
+        totalIncidents = 0;
+        return;
+    }
+
+   
+    fread(&totalIncidents, sizeof(int), 1, filePointer);
+
+    
+    if (totalIncidents < 0 || totalIncidents > MAX_INCIDENTS)
+    {
+        totalIncidents = 0;
+    }
+
+    
+    fread(incidentList, sizeof(struct Incident), totalIncidents, filePointer);
+
+    fclose(filePointer);
+}
+
+
+void saveToFile(void)
+{
+    FILE *filePointer = fopen(FILE_NAME, "wb");   
+
+    if (filePointer == NULL)
+    {
+        printf("Error: could not save data to file!\n");
+        return;
+    }
+
+    
+    fwrite(&totalIncidents, sizeof(int), 1, filePointer);
+    fwrite(incidentList, sizeof(struct Incident), totalIncidents, filePointer);
+
+    fclose(filePointer);
+}
+
+
+/* =====================================================
+ *                  MAIN FEATURES
+ * ===================================================== */
+
+
+void addIncident(void)
+{
+    struct Incident newIncident;
+    int idIsUnique = 0;
+
+    if (totalIncidents >= MAX_INCIDENTS)
+    {
+        printf("Storage is full. Cannot add more incidents.\n");
+        return;
+    }
+
+   
+    while (idIsUnique == 0)
+    {
+        printf("Enter unique incident ID (number): ");
+        if (scanf("%d", &newIncident.incidentId) != 1)
+        {
+            clearInputLine();
+            printf("Wrong input. Please enter a number.\n");
+            continue;
+        }
+        clearInputLine();
+
+        if (newIncident.incidentId <= 0)
+        {
+            printf("ID must be greater than 0.\n");
+        }
+        else if (findIncidentIndex(newIncident.incidentId) != -1)
+        {
+            printf("This ID already exists. Try a different one.\n");
+        }
+        else
+        {
+            idIsUnique = 1;
+        }
+    }
+
+    
+    printf("Enter incident type (e.g. Phishing, Malware, Data Breach): ");
+    fgets(newIncident.incidentType, sizeof(newIncident.incidentType), stdin);
+    newIncident.incidentType[strcspn(newIncident.incidentType, "\n")] = '\0';
+
+    printf("Enter short description: ");
+    fgets(newIncident.description, sizeof(newIncident.description), stdin);
+    newIncident.description[strcspn(newIncident.description, "\n")] = '\0';
+
+    newIncident.severity = askSeverity();
+    newIncident.status   = askStatus();
+
+    
+    incidentList[totalIncidents] = newIncident;
+    totalIncidents++;
+
+    saveToFile();
+    printf("Incident added successfully!\n");
+}
+
+
+void viewAllIncidents(void)
+{
+    int i;
+
+    if (totalIncidents == 0)
+    {
+        printf("No incidents recorded yet.\n");
+        return;
+    }
+
+    printf("\nTotal incidents: %d\n", totalIncidents);
+
+    for (i = 0; i < totalIncidents; i++)
+    {
+        printOneIncident(incidentList[i]);
+    }
+}
+
+
+void searchById(void)
+{
+    int searchId;
+    int position;
+
+    printf("Enter the incident ID to search: ");
+    if (scanf("%d", &searchId) != 1)
+    {
+        clearInputLine();
+        printf("Wrong input.\n");
+        return;
+    }
+    clearInputLine();
+
+    position = findIncidentIndex(searchId);
+
+    if (position == -1)
+    {
+        printf("No incident found with ID %d.\n", searchId);
+    }
+    else
+    {
+        printOneIncident(incidentList[position]);
+    }
+}
+
+
+void searchByType(void)
+{
+    char searchType[30];
+    int i;
+    int foundCount = 0;
+
+    printf("Enter the incident type to search: ");
+    fgets(searchType, sizeof(searchType), stdin);
+    searchType[strcspn(searchType, "\n")] = '\0';
+
+    for (i = 0; i < totalIncidents; i++)
+    {
+       
+        if (strcmp(incidentList[i].incidentType, searchType) == 0)
+        {
+            printOneIncident(incidentList[i]);
+            foundCount++;
+        }
+    }
+
+    if (foundCount == 0)
+    {
+        printf("No incidents found of type \"%s\".\n", searchType);
+    }
+    else
+    {
+        printf("Total found: %d\n", foundCount);
+    }
+}
+
+
+void searchBySeverity(void)
+{
+    int searchSeverity;
+    int i;
+    int foundCount = 0;
+
+    searchSeverity = askSeverity();
+
+    for (i = 0; i < totalIncidents; i++)
+    {
+        if (incidentList[i].severity == searchSeverity)
+        {
+            printOneIncident(incidentList[i]);
+            foundCount++;
+        }
+    }
+
+    if (foundCount == 0)
+    {
+        printf("No incidents found with severity %s.\n", severityToText(searchSeverity));
+    }
+    else
+    {
+        printf("Total found: %d\n", foundCount);
+    }
+}
+
+
+void updateIncident(void)
+{
+    int updateId;
+    int position;
+    int updateChoice;
+
+    printf("Enter the ID of the incident to update: ");
+    if (scanf("%d", &updateId) != 1)
+    {
+        clearInputLine();
+        printf("Wrong input.\n");
+        return;
+    }
+    clearInputLine();
+
+    position = findIncidentIndex(updateId);
+
+    if (position == -1)
+    {
+        printf("No incident found with ID %d.\n", updateId);
+        return;
+    }
+
+    printf("Current details:\n");
+    printOneIncident(incidentList[position]);
+
+    printf("\nWhat do you want to update?\n");
+    printf("1. Description\n");
+    printf("2. Severity\n");
+    printf("3. Status\n");
+    printf("Enter your choice: ");
+    if (scanf("%d", &updateChoice) != 1)
+    {
+        updateChoice = 0;
+    }
+    clearInputLine();
+
+    switch (updateChoice)
+    {
+        case 1:
+            printf("Enter new description: ");
+            fgets(incidentList[position].description,
+                  sizeof(incidentList[position].description), stdin);
+            incidentList[position].description[
+                strcspn(incidentList[position].description, "\n")] = '\0';
+            break;
+        case 2:
+            incidentList[position].severity = askSeverity();
+            break;
+        case 3:
+            incidentList[position].status = askStatus();
+            break;
+        default:
+            printf("Invalid choice. Nothing was changed.\n");
+            return;
+    }
+
+    saveToFile();
+    printf("Incident updated successfully!\n");
+}
+
+
+void deleteIncident(void)
+{
+    int deleteId;
+    int position;
+    int i;
+
+    printf("Enter the ID of the incident to delete: ");
+    if (scanf("%d", &deleteId) != 1)
+    {
+        clearInputLine();
+        printf("Wrong input.\n");
+        return;
+    }
+    clearInputLine();
+
+    position = findIncidentIndex(deleteId);
+
+    if (position == -1)
+    {
+        printf("No incident found with ID %d.\n", deleteId);
+        return;
+    }
+
+    
+    for (i = position; i < totalIncidents - 1; i++)
+    {
+        incidentList[i] = incidentList[i + 1];
+    }
+    totalIncidents--;
+
+    saveToFile();
+    printf("Incident deleted successfully!\n");
+}
+
+
+void showStatistics(void)
+{
+    
+    int severityCount[5] = {0, 0, 0, 0, 0};
+    int statusCount[4]   = {0, 0, 0, 0};
+    int i;
+
+    
+    for (i = 0; i < totalIncidents; i++)
+    {
+        severityCount[incidentList[i].severity]++;
+        statusCount[incidentList[i].status]++;
+    }
+
+    printf("\n========== STATISTICS ==========\n");
+    printf("Total incidents: %d\n\n", totalIncidents);
+
+    printf("By Severity:\n");
+    printf("  Low      : %d\n", severityCount[1]);
+    printf("  Medium   : %d\n", severityCount[2]);
+    printf("  High     : %d\n", severityCount[3]);
+    printf("  Critical : %d\n\n", severityCount[4]);
+
+    printf("By Status:\n");
+    printf("  Open        : %d\n", statusCount[1]);
+    printf("  In Progress : %d\n", statusCount[2]);
+    printf("  Resolved    : %d\n", statusCount[3]);
+}
